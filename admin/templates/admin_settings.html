@@ -1,0 +1,822 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Admin Settings{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>⚙️ System Settings</h1>
+            <small class="text-muted">Configure AI system behavior and TTS settings</small>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- System Configuration -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">🤖 AI System Configuration</h5>
+            </div>
+            
+        </div>
+
+        <!-- Knowledge Base Management -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">📚 Knowledge Base Management</h5>
+            </div>
+            <div class="card-body">
+                <!-- Upload New Document -->
+                <div class="mb-4">
+                    <h6>Upload New Document</h6>
+                    <div class="mb-3">
+                        <label for="docName" class="form-label">Document Name</label>
+                        <input type="text" class="form-control" id="docName" placeholder="Enter document name">
+                    </div>
+                    <div class="mb-3">
+                        <label for="docContent" class="form-label">Document Content</label>
+                        <textarea class="form-control" id="docContent" rows="6" placeholder="Enter document content..."></textarea>
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="uploadDocument()">
+                        <i class="fas fa-upload"></i> Upload Document
+                    </button>
+                </div>
+
+                <!-- Document List -->
+                <div class="mb-3">
+                    <h6>Existing Documents</h6>
+                    <div id="documentList" class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                        <small class="text-muted">Loading documents...</small>
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="refreshDocuments()">
+                        <i class="fas fa-refresh"></i> Refresh List
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TTS Configuration -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">🎙️ Text-to-Speech Settings</h5>
+            </div>
+            <div class="card-body">
+                <!-- Provider Selection -->
+                <div class="mb-3">
+                    <label for="provider_select" class="form-label">TTS Provider <span class="text-muted">(Unreal Speech, Hume, or Hume EVI3)</span></label>
+                    <div class="input-group">
+                        <select class="form-select" id="provider_select">
+                            <option value="" disabled selected>Loading providers...</option>
+                        </select>
+                        <button class="btn btn-warning" type="button" onclick="switchProvider()">Switch</button>
+                    </div>
+                </div>
+
+                <!-- Voice Selection -->
+                <div class="mb-3">
+                    <label for="voice_select" class="form-label">Voice</label>
+                    <select class="form-select" id="voice_select">
+                        <option value="" disabled selected>Choose a voice...</option>
+                    </select>
+                    <div id="voiceDescription" class="form-text mt-2"></div>
+                    <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="testSelectedVoice()">
+                        <i class="fas fa-play"></i> Test Selected Voice
+                    </button>
+                </div>
+
+                <!-- Speed Control -->
+                <div class="mb-3">
+                    <label for="speed" class="form-label">Speech Speed: <span id="speedValue">1.0x</span></label>
+                    <input type="range" class="form-range" id="speed" min="0.5" max="2.0" step="0.1" value="1.0">
+                </div>
+
+                <!-- Temperature Control -->
+                <div class="mb-3">
+                    <label for="temperature" class="form-label">Expressiveness: <span id="temperatureValue">0.25</span></label>
+                    <input type="range" class="form-range" id="temperature" min="0.1" max="0.8" step="0.05" value="0.25">
+                    <div class="form-text">Controls speech expressiveness and variability</div>
+                </div>
+
+                <!-- Pitch Control -->
+                <div class="mb-3" id="pitchContainer">
+                    <label for="pitch" class="form-label">Voice Pitch: <span id="pitchValue">1.0</span></label>
+                    <input type="range" class="form-range" id="pitch" min="0.5" max="1.5" step="0.05" value="1.0">
+                    <div class="form-text">Lower = deeper voice, Higher = higher voice</div>
+                </div>
+
+                <!-- Sensitivity Control -->
+                <div class="mb-3">
+                    <label for="sensitivityLevel" class="form-label">Speech Recognition Sensitivity</label>
+                    <select class="form-select" id="sensitivityLevel" onchange="adjustSpeechSensitivity()">
+                        <option value="low">Low (Noisy Environments)</option>
+                        <option value="medium" selected>Medium (Balanced)</option>
+                        <option value="high">High (Quiet Environments)</option>
+                    </select>
+                </div>
+
+                <!-- Provider Status -->
+                <div class="mb-3">
+                    <h6>Provider Status:</h6>
+                    <div id="providerStatus" class="alert alert-secondary">
+                        <small>Loading provider status...</small>
+                    </div>
+                </div>
+
+                <!-- Update Button -->
+                <div class="text-center">
+                    <button type="button" class="btn btn-primary w-100" onclick="updateTTSSettings()">
+                        <i class="fas fa-save"></i> Update TTS Settings
+                    </button>
+                </div>
+
+                <!-- Test TTS -->
+                <div class="mt-3">
+                    <button type="button" class="btn btn-outline-info w-100" onclick="testTTS()">
+                        <i class="fas fa-play"></i> Test Current Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Information -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">📊 System Information</h5>
+            </div>
+            <div class="card-body">
+                <div id="systemInfo">
+                    <small class="text-muted">Loading system information...</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Token Optimization Settings -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">🔧 Token Optimization</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="tokenOptimizationLevel" class="form-label">Optimization Level</label>
+                    <select class="form-select" id="tokenOptimizationLevel">
+                        <option value="aggressive">Aggressive (Maximum Savings)</option>
+                        <option value="balanced" selected>Balanced (Recommended)</option>
+                        <option value="minimal">Minimal (Maximum Context)</option>
+                    </select>
+                    <div class="form-text">Controls how aggressively the system optimizes token usage</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="maxConversationHistory" class="form-label">Max Conversation History: <span id="historyValue">5</span> messages</label>
+                    <input type="range" class="form-range" id="maxConversationHistory" min="3" max="20" step="1" value="5">
+                    <div class="form-text">Number of previous messages to keep in context</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="maxSystemPromptLength" class="form-label">Max System Prompt Length: <span id="promptLengthValue">1000</span> chars</label>
+                    <input type="range" class="form-range" id="maxSystemPromptLength" min="500" max="2000" step="100" value="1000">
+                    <div class="form-text">Maximum length of system prompt in characters</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="maxEmotionalStates" class="form-label">Max Emotional States: <span id="emotionalValue">5</span></label>
+                    <input type="range" class="form-range" id="maxEmotionalStates" min="3" max="10" step="1" value="5">
+                    <div class="form-text">Number of emotional states to keep in memory</div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="enableContextPruning" checked>
+                        <label class="form-check-label" for="enableContextPruning">Enable Context Pruning</label>
+                    </div>
+                    <div class="form-text">Automatically remove old context to save tokens</div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="enableContextSummarization" checked>
+                        <label class="form-check-label" for="enableContextSummarization">Enable Context Summarization</label>
+                    </div>
+                    <div class="form-text">Summarize old context instead of removing it completely</div>
+                </div>
+
+                <!-- Token Usage Stats -->
+                <div class="mt-4">
+                    <h6>Token Usage Statistics</h6>
+                    <div id="tokenStats" class="alert alert-info">
+                        <small>Loading token statistics...</small>
+                    </div>
+                </div>
+
+                <!-- Update Button -->
+                <div class="text-center mt-3">
+                    <button type="button" class="btn btn-primary w-100" onclick="updateTokenSettings()">
+                        <i class="fas fa-save"></i> Update Token Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Status Messages -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="statusToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <strong class="me-auto">Settings</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body" id="statusToastBody">
+            <!-- Message will be inserted here -->
+        </div>
+    </div>
+</div>
+
+<script>
+// Settings Management Functions
+let currentSettings = {};
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadSystemStatus();
+    loadDocuments();
+    loadTTSProviders();
+    loadSystemInfo();
+    
+    // Initialize range input displays
+    updateRangeDisplays();
+});
+
+function updateRangeDisplays() {
+    // Speed
+    const speedInput = document.getElementById('speed');
+    const speedValue = document.getElementById('speedValue');
+    speedInput.addEventListener('input', function() {
+        speedValue.textContent = this.value + 'x';
+    });
+    
+    // Temperature
+    const tempInput = document.getElementById('temperature');
+    const tempValue = document.getElementById('temperatureValue');
+    tempInput.addEventListener('input', function() {
+        tempValue.textContent = this.value;
+    });
+    
+    // Pitch
+    const pitchInput = document.getElementById('pitch');
+    const pitchValue = document.getElementById('pitchValue');
+    pitchInput.addEventListener('input', function() {
+        pitchValue.textContent = this.value;
+    });
+}
+
+async function loadSystemStatus() {
+    try {
+        const response = await fetch('/knowledge-base/status');
+        const data = await response.json();
+        
+        const statusDiv = document.getElementById('systemStatus');
+        if (data.status === 'ok') {
+            statusDiv.className = 'alert alert-success';
+            statusDiv.innerHTML = `
+                <strong>System Operational</strong><br>
+                <small>
+                    Documents: ${data.available_documents} available, ${data.loaded_documents} loaded<br>
+                    System prompt: ${data.system_prompt_set ? 'Set' : 'Not set'} (${data.system_prompt_length} chars)<br>
+                    Conversation history: ${data.conversation_history_length} messages
+                </small>
+            `;
+        } else {
+            statusDiv.className = 'alert alert-warning';
+            statusDiv.innerHTML = '<strong>System Issues Detected</strong><br><small>Check console for details</small>';
+        }
+    } catch (error) {
+        console.error('Failed to load system status:', error);
+    }
+}
+
+async function loadDocuments() {
+    try {
+        const response = await fetch('/documents');
+        const data = await response.json();
+        
+        const listDiv = document.getElementById('documentList');
+        
+        if (data.documents && data.documents.length > 0) {
+            listDiv.innerHTML = data.documents.map(doc => `
+                <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                    <span>${doc}</span>
+                    <button class="btn btn-outline-danger btn-sm" onclick="deleteDocument('${doc}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `).join('');
+        } else {
+            listDiv.innerHTML = '<small class="text-muted">No documents uploaded yet</small>';
+        }
+    } catch (error) {
+        console.error('Failed to load documents:', error);
+        document.getElementById('documentList').innerHTML = '<small class="text-danger">Error loading documents</small>';
+    }
+}
+
+async function loadTTSProviders() {
+    try {
+        const response = await fetch('/tts/providers');
+        const data = await response.json();
+        
+        const providerSelect = document.getElementById('provider_select');
+        providerSelect.innerHTML = '<option value="" disabled>Select provider...</option>';
+        
+        Object.keys(data.providers).forEach(provider => {
+            const option = document.createElement('option');
+            option.value = provider;
+            option.textContent = provider;
+            if (provider === data.current_provider) {
+                option.selected = true;
+            }
+            providerSelect.appendChild(option);
+        });
+        
+        // Load voices for current provider
+        loadVoices();
+        updateProviderStatus(data.status);
+        
+    } catch (error) {
+        console.error('Failed to load TTS providers:', error);
+    }
+}
+
+async function loadVoices() {
+    try {
+        const response = await fetch('/voices');
+        const data = await response.json();
+        
+        const voiceSelect = document.getElementById('voice_select');
+        voiceSelect.innerHTML = '<option value="" disabled selected>Choose a voice...</option>';
+        
+        if (data.voices_page && data.voices_page.length > 0) {
+            data.voices_page.forEach(voice => {
+                const option = document.createElement('option');
+                option.value = voice.id;
+                option.textContent = voice.name || voice.id;
+                voiceSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Failed to load voices:', error);
+    }
+}
+
+function updateProviderStatus(status) {
+    const statusDiv = document.getElementById('providerStatus');
+    statusDiv.innerHTML = `
+        <strong>Current Provider:</strong> ${status.current_provider}<br>
+        <small>Status: ${status.status || 'Unknown'}</small>
+    `;
+}
+
+async function loadSystemInfo() {
+    try {
+        const response = await fetch('/debug/conversation-state');
+        const data = await response.json();
+        
+        const infoDiv = document.getElementById('systemInfo');
+        infoDiv.innerHTML = `
+            <div class="row">
+                <div class="col-6">
+                    <strong>API Keys:</strong><br>
+                    <small>
+                        OpenAI: ${data.api_keys.openai_set ? '✅' : '❌'}<br>
+                        Hume: ${data.api_keys.hume_set ? '✅' : '❌'}<br>
+                        UnrealSpeech: ${data.api_keys.unrealspeech_set ? '✅' : '❌'}
+                    </small>
+                </div>
+                <div class="col-6">
+                    <strong>Configuration:</strong><br>
+                    <small>
+                        TTS Provider: ${data.config.tts_provider}<br>
+                        Conversation Manager: ${data.conversation_manager.type || 'Standard'}
+                    </small>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Failed to load system info:', error);
+    }
+}
+
+// Settings Update Functions
+async function updateSystemPrompt() {
+    const prompt = document.getElementById('systemPrompt').value.trim();
+    
+    if (!prompt) {
+        showToast('Please enter a system prompt', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/system-prompt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: prompt })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showToast('System prompt updated successfully', 'success');
+            loadSystemStatus(); // Refresh status
+        } else {
+            showToast(data.error || 'Failed to update system prompt', 'error');
+        }
+    } catch (error) {
+        console.error('Error updating system prompt:', error);
+        showToast('Error updating system prompt', 'error');
+    }
+}
+
+async function uploadDocument() {
+    const name = document.getElementById('docName').value.trim();
+    const content = document.getElementById('docContent').value.trim();
+    
+    if (!name || !content) {
+        showToast('Please enter both document name and content', 'error');
+        return;
+    }
+    
+    try {
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('content', content);
+        
+        const response = await fetch('/documents', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showToast(`Document "${name}" uploaded successfully`, 'success');
+            document.getElementById('docName').value = '';
+            document.getElementById('docContent').value = '';
+            loadDocuments(); // Refresh list
+            loadSystemStatus(); // Refresh status
+        } else {
+            showToast(data.error || 'Failed to upload document', 'error');
+        }
+    } catch (error) {
+        console.error('Error uploading document:', error);
+        showToast('Error uploading document', 'error');
+    }
+}
+
+async function deleteDocument(docName) {
+    if (!confirm(`Are you sure you want to delete "${docName}"?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/documents/${docName}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showToast(`Document "${docName}" deleted successfully`, 'success');
+            loadDocuments(); // Refresh list
+            loadSystemStatus(); // Refresh status
+        } else {
+            showToast(data.error || 'Failed to delete document', 'error');
+        }
+    } catch (error) {
+        console.error('Error deleting document:', error);
+        showToast('Error deleting document', 'error');
+    }
+}
+
+function refreshDocuments() {
+    loadDocuments();
+    loadSystemStatus();
+}
+
+async function switchProvider() {
+    const provider = document.getElementById('provider_select').value;
+    
+    if (!provider) {
+        showToast('Please select a provider', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/tts/provider', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ provider: provider })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showToast(`Switched to ${provider} successfully`, 'success');
+            loadVoices(); // Reload voices for new provider
+            loadTTSProviders(); // Refresh provider status
+        } else {
+            showToast(data.error || 'Failed to switch provider', 'error');
+        }
+    } catch (error) {
+        console.error('Error switching provider:', error);
+        showToast('Error switching provider', 'error');
+    }
+}
+
+async function updateTTSSettings() {
+    try {
+        const settings = {
+            provider: document.getElementById('provider_select').value,
+            voice_id: document.getElementById('voice_select').value,
+            speed: document.getElementById('speed').value,
+            temperature: document.getElementById('temperature').value
+        };
+
+        const response = await fetch('/tts/settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(settings)
+        });
+
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showToast('TTS settings saved to database', 'success');
+        } else {
+            showToast(data.error || 'Failed to save TTS settings', 'error');
+        }
+    } catch (error) {
+        console.error('Error updating TTS settings:', error);
+        showToast('Error saving TTS settings', 'error');
+    }
+}
+
+function adjustSpeechSensitivity() {
+    const level = document.getElementById('sensitivityLevel').value;
+    showToast(`Speech sensitivity set to ${level}`, 'info');
+}
+
+async function testTTS() {
+    const voice = document.getElementById('voice_select').value;
+    const speed = document.getElementById('speed').value;
+    const temperature = document.getElementById('temperature').value;
+    const pitch = document.getElementById('pitch').value;
+    
+    if (!voice) {
+        showToast('Please select a voice first', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/tts/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text: 'This is a test of the text-to-speech system with current settings.',
+                voice_id: voice,
+                speed: speed,
+                temperature: temperature,
+                pitch: pitch
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showToast('TTS test completed successfully', 'success');
+        } else {
+            showToast(data.error || 'TTS test failed', 'error');
+        }
+    } catch (error) {
+        console.error('Error testing TTS:', error);
+        showToast('Error testing TTS', 'error');
+    }
+}
+
+// Voice descriptions mapping
+const voiceDescriptions = {
+    '358105e3-807d-4f0a-9b17-c35751a1040b': 'UX Coach EVI.',
+    'Sky': 'A natural-sounding female voice with good expressiveness. Ideal for conversational interactions.',
+    'Melody': 'A bright, energetic female voice. Perfect for engaging presentations.',
+    'Javier': 'A professional male voice with good clarity. Well-suited for technical content.',
+    'Marcus': 'A deep, authoritative male voice. Great for formal presentations.',
+    'Luna': 'A soft, gentle female voice. Good for calming or soothing content.',
+    'Atlas': 'A confident male voice with good pacing. Ideal for business presentations.',
+    'Nova': 'A youthful, enthusiastic female voice. Perfect for engaging younger audiences.',
+    'Orion': 'A mature male voice with excellent clarity. Great for detailed explanations.',
+    'Aria': 'A melodic female voice with natural intonation. Ideal for storytelling.'
+};
+
+// Update voice description when selection changes
+document.getElementById('voice_select').addEventListener('change', function() {
+    const selectedVoice = this.value;
+    const descriptionDiv = document.getElementById('voiceDescription');
+    if (voiceDescriptions[selectedVoice]) {
+        descriptionDiv.textContent = voiceDescriptions[selectedVoice];
+    } else {
+        descriptionDiv.textContent = 'No description available for this voice.';
+    }
+});
+
+// Test selected voice
+async function testSelectedVoice() {
+    const voiceSelect = document.getElementById('voice_select');
+    const selectedVoice = voiceSelect.value;
+    
+    if (!selectedVoice) {
+        showToast('Please select a voice first', 'warning');
+        return;
+    }
+    
+    try {
+        showToast('Testing voice...', 'info');
+        
+        const response = await fetch('/synthesize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text: "Hello! This is a test of the selected voice. How does it sound?",
+                voice_id: selectedVoice,
+                speed: document.getElementById('speed').value,
+                temperature: document.getElementById('temperature').value
+            })
+        });
+        
+        if (response.ok) {
+            const audioBlob = await response.blob();
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const audio = new Audio(audioUrl);
+            
+            audio.onended = () => {
+                URL.revokeObjectURL(audioUrl);
+                showToast('Voice test completed', 'success');
+            };
+            
+            audio.onerror = (error) => {
+                console.error('Audio playback error:', error);
+                URL.revokeObjectURL(audioUrl);
+                showToast('Voice test failed', 'error');
+            };
+            
+            await audio.play();
+        } else {
+            throw new Error('Voice test failed');
+        }
+    } catch (error) {
+        console.error('Voice test error:', error);
+        showToast('Failed to test voice: ' + error.message, 'error');
+    }
+}
+
+// Utility Functions
+function showToast(message, type = 'info') {
+    const toast = document.getElementById('statusToast');
+    const toastBody = document.getElementById('statusToastBody');
+    
+    // Set message and style based on type
+    toastBody.textContent = message;
+    toast.className = `toast show`;
+    
+    if (type === 'success') {
+        toast.classList.add('bg-success', 'text-white');
+    } else if (type === 'error') {
+        toast.classList.add('bg-danger', 'text-white');
+    } else if (type === 'warning') {
+        toast.classList.add('bg-warning');
+    } else {
+        toast.classList.add('bg-info', 'text-white');
+    }
+    
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3000);
+}
+
+// Token Settings Management
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize token settings UI
+    loadTokenSettings();
+    setupTokenSettingsListeners();
+});
+
+function setupTokenSettingsListeners() {
+    // History slider
+    const historyInput = document.getElementById('maxConversationHistory');
+    const historyValue = document.getElementById('historyValue');
+    historyInput.addEventListener('input', function() {
+        historyValue.textContent = this.value;
+    });
+
+    // Prompt length slider
+    const promptInput = document.getElementById('maxSystemPromptLength');
+    const promptValue = document.getElementById('promptLengthValue');
+    promptInput.addEventListener('input', function() {
+        promptValue.textContent = this.value;
+    });
+
+    // Emotional states slider
+    const emotionalInput = document.getElementById('maxEmotionalStates');
+    const emotionalValue = document.getElementById('emotionalValue');
+    emotionalInput.addEventListener('input', function() {
+        emotionalValue.textContent = this.value;
+    });
+}
+
+async function loadTokenSettings() {
+    try {
+        const response = await fetch('/admin/settings/token');
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            // Update UI with current settings
+            document.getElementById('tokenOptimizationLevel').value = data.settings.token_optimization_level;
+            document.getElementById('maxConversationHistory').value = data.settings.max_conversation_history;
+            document.getElementById('maxSystemPromptLength').value = data.settings.max_system_prompt_length;
+            document.getElementById('maxEmotionalStates').value = data.settings.max_emotional_states;
+            document.getElementById('enableContextPruning').checked = data.settings.enable_context_pruning;
+            document.getElementById('enableContextSummarization').checked = data.settings.enable_context_summarization;
+            
+            // Update token stats
+            updateTokenStats(data.stats);
+        }
+    } catch (error) {
+        console.error('Failed to load token settings:', error);
+        showToast('Failed to load token settings', 'error');
+    }
+}
+
+async function updateTokenSettings() {
+    const settings = {
+        token_optimization_level: document.getElementById('tokenOptimizationLevel').value,
+        max_conversation_history: parseInt(document.getElementById('maxConversationHistory').value),
+        max_system_prompt_length: parseInt(document.getElementById('maxSystemPromptLength').value),
+        max_emotional_states: parseInt(document.getElementById('maxEmotionalStates').value),
+        enable_context_pruning: document.getElementById('enableContextPruning').checked,
+        enable_context_summarization: document.getElementById('enableContextSummarization').checked
+    };
+    
+    try {
+        const response = await fetch('/admin/settings/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings)
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showToast('Token settings updated successfully', 'success');
+            updateTokenStats(data.stats);
+        } else {
+            showToast(data.error || 'Failed to update token settings', 'error');
+        }
+    } catch (error) {
+        console.error('Error updating token settings:', error);
+        showToast('Error updating token settings', 'error');
+    }
+}
+
+function updateTokenStats(stats) {
+    const statsDiv = document.getElementById('tokenStats');
+    if (stats) {
+        statsDiv.innerHTML = `
+            <div class="row">
+                <div class="col-6">
+                    <strong>Current Usage:</strong><br>
+                    <small>
+                        Conversation: ${stats.conversation_tokens} tokens<br>
+                        System Prompt: ${stats.system_prompt_tokens} tokens<br>
+                        Total: ${stats.total_tokens} tokens
+                    </small>
+                </div>
+                <div class="col-6">
+                    <strong>Savings:</strong><br>
+                    <small>
+                        Context Pruning: ${stats.pruning_savings} tokens<br>
+                        Summarization: ${stats.summarization_savings} tokens<br>
+                        Total Savings: ${stats.total_savings} tokens
+                    </small>
+                </div>
+            </div>
+        `;
+    } else {
+        statsDiv.innerHTML = '<small class="text-muted">No token statistics available</small>';
+    }
+}
+</script>
+{% endblock %}

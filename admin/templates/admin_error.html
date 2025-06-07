@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Error - Lesson Management</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .error-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            overflow: hidden;
+            max-width: 500px;
+            width: 100%;
+        }
+        .error-header {
+            background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .error-body {
+            padding: 30px;
+        }
+        .btn-admin {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 30px;
+            color: white;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-admin:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+            color: white;
+            text-decoration: none;
+        }
+        .error-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-card">
+        <div class="error-header">
+            <div class="error-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h2>Admin Error</h2>
+            <p class="mb-0">{{ error or "An unexpected error occurred" }}</p>
+        </div>
+        
+        <div class="error-body">
+            {% if message %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-info-circle me-2"></i>
+                    {{ message }}
+                </div>
+            {% endif %}
+            
+            <div class="mb-4">
+                <h5>Possible Solutions:</h5>
+                <ul class="text-muted">
+                    {% if error == "Database not available" %}
+                        <li>Enable database features in your application settings</li>
+                        <li>Check that the database initialization completed successfully</li>
+                        <li>Verify database file permissions</li>
+                    {% else %}
+                        <li>Try refreshing the page</li>
+                        <li>Check your internet connection</li>
+                        <li>Clear your browser cache</li>
+                    {% endif %}
+                    <li>Contact the system administrator if the problem persists</li>
+                </ul>
+            </div>
+            
+            <div class="d-grid gap-2">
+                <a href="{{ url_for('admin.dashboard') }}" class="btn-admin">
+                    <i class="fas fa-home me-2"></i>Return to Dashboard
+                </a>
+                <a href="{{ url_for('admin.lesson_list') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-book me-2"></i>View Lessons
+                </a>
+            </div>
+            
+            {% if error == "Database not available" %}
+                <div class="mt-4 p-3 bg-light rounded">
+                    <h6><i class="fas fa-cog me-2"></i>Enable Database Features:</h6>
+                    <p class="small mb-2">To use the admin interface, enable database features in your application:</p>
+                    <code class="small">setup_slide_system(app, enable_database=True)</code>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Auto-retry after 10 seconds for transient errors
+        {% if error != "Database not available" %}
+        setTimeout(function() {
+            const retryBtn = document.createElement('button');
+            retryBtn.className = 'btn btn-outline-primary btn-sm mt-2';
+            retryBtn.innerHTML = '<i class="fas fa-redo me-1"></i>Auto-retry in progress...';
+            retryBtn.disabled = true;
+            
+            document.querySelector('.error-body').appendChild(retryBtn);
+            
+            // Try to reload after 2 more seconds
+            setTimeout(function() {
+                window.location.reload();
+            }, 2000);
+        }, 10000);
+        {% endif %}
+    </script>
+</body>
+</html>

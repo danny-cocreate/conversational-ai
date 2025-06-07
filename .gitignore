@@ -4,15 +4,25 @@ __pycache__/
 *$py.class
 *.so
 .Python
-.env
-.venv
-env/
+.venv/
 venv/
 ENV/
-env.bak/
-venv.bak/
-pip-log.txt
-pip-delete-this-directory.txt
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
 # IDE
 .idea/
@@ -20,10 +30,22 @@ pip-delete-this-directory.txt
 *.swp
 *.swo
 
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
 # Project specific
-debug-audio.mp3
-test-audio.mp3
-knowledge_base/*.txt
+instance/
+*.db
+*.mp3
+test_output.mp3
+knowledge_base.backup.removed/
+document_processor.py.backup.removed/
 
 # Logs
 *.log

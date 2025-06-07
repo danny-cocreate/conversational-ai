@@ -1,0 +1,351 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Lessons{% endblock %}
+
+{% block page_title %}
+<i class="fas fa-book me-2"></i> All Lessons
+{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('admin.upload_lesson') }}" class="btn btn-primary">
+    <i class="fas fa-plus me-2"></i>Upload Lesson
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Search and Filters -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="input-group">
+            <span class="input-group-text">
+                <i class="fas fa-search"></i>
+            </span>
+            <input type="text" 
+                   class="form-control" 
+                   id="searchInput" 
+                   placeholder="Search lessons by title, ID, or content...">
+        </div>
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" id="statusFilter">
+            <option value="">All Status</option>
+            <option value="published">Published</option>
+            <option value="draft">Draft</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" id="sortBy">
+            <option value="updated_desc">Recently Updated</option>
+            <option value="created_desc">Recently Created</option>
+            <option value="title_asc">Title A-Z</option>
+            <option value="slides_desc">Most Slides</option>
+        </select>
+    </div>
+</div>
+
+<!-- Lessons Grid/List -->
+{% if lessons %}
+    <div class="row g-4" id="lessonsContainer">
+        {% for lesson in lessons %}
+        <div class="col-md-6 col-lg-4 lesson-item" 
+             data-title="{{ lesson.title|lower }}" 
+             data-id="{{ lesson.id|lower }}" 
+             data-status="{{ 'published' if lesson.is_published else 'draft' }}"
+             data-updated="{{ lesson.updated_at }}"
+             data-created="{{ lesson.created_at }}"
+             data-slides="{{ lesson.slide_count }}">
+            <div class="card lesson-card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        {% if lesson.is_published %}
+                            <span class="badge bg-success status-badge">
+                                <i class="fas fa-globe me-1"></i>Published
+                            </span>
+                        {% else %}
+                            <span class="badge bg-warning status-badge">
+                                <i class="fas fa-edit me-1"></i>Draft
+                            </span>
+                        {% endif %}
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" 
+                                data-bs-toggle="dropdown">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item" 
+                                   href="{{ url_for('admin.lesson_detail', lesson_id=lesson.id) }}">
+                                    <i class="fas fa-eye me-2"></i>View Details
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" 
+                                   href="{{ url_for('admin.lesson_preview', lesson_id=lesson.id) }}">
+                                    <i class="fas fa-search me-2"></i>Preview
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="POST" 
+                                      action="{{ url_for('admin.toggle_lesson_publish', lesson_id=lesson.id) }}" 
+                                      style="display: inline;">
+                                    <input type="hidden" name="publish" 
+                                           value="{{ 'false' if lesson.is_published else 'true' }}">
+                                    <button class="dropdown-item" type="submit">
+                                        {% if lesson.is_published %}
+                                            <i class="fas fa-eye-slash me-2"></i>Unpublish
+                                        {% else %}
+                                            <i class="fas fa-globe me-2"></i>Publish
+                                        {% endif %}
+                                    </button>
+                                </form>
+                            </li>
+                            <li>
+                                <form method="POST" 
+                                      action="{{ url_for('admin.delete_lesson', lesson_id=lesson.id) }}" 
+                                      style="display: inline;"
+                                      onsubmit="return confirmDelete('{{ lesson.title }}')">
+                                    <input type="hidden" name="confirm" value="true">
+                                    <button class="dropdown-item text-danger" type="submit">
+                                        <i class="fas fa-trash me-2"></i>Delete
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <h5 class="card-title">{{ lesson.title }}</h5>
+                    <p class="text-muted mb-2">
+                        <small>
+                            <i class="fas fa-link me-1"></i>{{ lesson.id }}
+                        </small>
+                    </p>
+                    
+                    {% if lesson.description %}
+                        <p class="card-text text-muted small">
+                            {{ lesson.description[:100] }}
+                            {% if lesson.description|length > 100 %}...{% endif %}
+                        </p>
+                    {% endif %}
+                    
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <div class="text-center p-2 bg-light rounded">
+                                <div class="h6 mb-0 text-primary">{{ lesson.slide_count }}</div>
+                                <small class="text-muted">Slides</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center p-2 bg-light rounded">
+                                <div class="h6 mb-0 text-success">0</div>
+                                <small class="text-muted">Sessions</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-footer bg-transparent">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>
+                            {{ lesson.updated_at|datetime_format }}
+                        </small>
+                        <div class="btn-group btn-group-sm">
+                            <a href="{{ url_for('admin.lesson_detail', lesson_id=lesson.id) }}" 
+                               class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {% if lesson.is_published %}
+                                <button class="btn btn-outline-success btn-sm" 
+                                        onclick="copyLessonUrl('{{ lesson.id }}')"
+                                        title="Copy lesson URL">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- No results message -->
+    <div id="noResults" class="text-center py-5 d-none">
+        <div class="mb-3">
+            <i class="fas fa-search fa-3x text-muted"></i>
+        </div>
+        <h5 class="text-muted">No lessons found</h5>
+        <p class="text-muted">Try adjusting your search criteria</p>
+    </div>
+    
+{% else %}
+    <!-- Empty state -->
+    <div class="text-center py-5">
+        <div class="mb-4">
+            <i class="fas fa-book fa-4x text-muted"></i>
+        </div>
+        <h3 class="text-muted">No lessons yet</h3>
+        <p class="text-muted mb-4">Create your first lesson to get started with the platform</p>
+        <a href="{{ url_for('admin.upload_lesson') }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-plus me-2"></i>Upload First Lesson
+        </a>
+    </div>
+{% endif %}
+
+<!-- Lesson URL Modal -->
+<div class="modal fade" id="urlModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-link me-2"></i>Lesson URL
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Share this URL with students to access the lesson:</p>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="lessonUrlInput" readonly>
+                    <button class="btn btn-outline-secondary" onclick="copyFromInput()">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Search and filter functionality
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+    const sortBy = document.getElementById('sortBy');
+    const lessonsContainer = document.getElementById('lessonsContainer');
+    const noResults = document.getElementById('noResults');
+    
+    function filterAndSortLessons() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const statusValue = statusFilter.value;
+        const sortValue = sortBy.value;
+        
+        const lessonItems = Array.from(document.querySelectorAll('.lesson-item'));
+        let visibleCount = 0;
+        
+        // Filter lessons
+        lessonItems.forEach(item => {
+            const title = item.dataset.title;
+            const id = item.dataset.id;
+            const status = item.dataset.status;
+            
+            const matchesSearch = !searchTerm || title.includes(searchTerm) || id.includes(searchTerm);
+            const matchesStatus = !statusValue || status === statusValue;
+            
+            if (matchesSearch && matchesStatus) {
+                item.style.display = 'block';
+                visibleCount++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+        
+        // Sort visible lessons
+        const visibleLessons = lessonItems.filter(item => item.style.display !== 'none');
+        visibleLessons.sort((a, b) => {
+            switch (sortValue) {
+                case 'title_asc':
+                    return a.dataset.title.localeCompare(b.dataset.title);
+                case 'slides_desc':
+                    return parseInt(b.dataset.slides) - parseInt(a.dataset.slides);
+                case 'created_desc':
+                    return new Date(b.dataset.created) - new Date(a.dataset.created);
+                case 'updated_desc':
+                default:
+                    return new Date(b.dataset.updated) - new Date(a.dataset.updated);
+            }
+        });
+        
+        // Reorder in DOM
+        visibleLessons.forEach(item => {
+            lessonsContainer.appendChild(item);
+        });
+        
+        // Show/hide no results message
+        if (visibleCount === 0 && lessonItems.length > 0) {
+            noResults.classList.remove('d-none');
+            lessonsContainer.classList.add('d-none');
+        } else {
+            noResults.classList.add('d-none');
+            lessonsContainer.classList.remove('d-none');
+        }
+    }
+    
+    // Event listeners
+    searchInput.addEventListener('input', filterAndSortLessons);
+    statusFilter.addEventListener('change', filterAndSortLessons);
+    sortBy.addEventListener('change', filterAndSortLessons);
+    
+    // Copy lesson URL functionality
+    function copyLessonUrl(lessonId) {
+        const url = `${window.location.origin}/lesson/${lessonId}`;
+        
+        // Copy to clipboard
+        navigator.clipboard.writeText(url).then(() => {
+            // Show modal with URL
+            document.getElementById('lessonUrlInput').value = url;
+            const modal = new bootstrap.Modal(document.getElementById('urlModal'));
+            modal.show();
+            
+            // Show temporary success message
+            const btn = event.target.closest('button');
+            const originalIcon = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i>';
+            btn.classList.remove('btn-outline-success');
+            btn.classList.add('btn-success');
+            
+            setTimeout(() => {
+                btn.innerHTML = originalIcon;
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-outline-success');
+            }, 2000);
+        }).catch(() => {
+            // Fallback - show modal anyway
+            document.getElementById('lessonUrlInput').value = url;
+            const modal = new bootstrap.Modal(document.getElementById('urlModal'));
+            modal.show();
+        });
+    }
+    
+    function copyFromInput() {
+        const input = document.getElementById('lessonUrlInput');
+        input.select();
+        document.execCommand('copy');
+        
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+        }, 1000);
+    }
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl/Cmd + K to focus search
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            searchInput.focus();
+        }
+    });
+    
+    // Auto-focus search on load
+    document.addEventListener('DOMContentLoaded', function() {
+        searchInput.focus();
+    });
+</script>
+{% endblock %}

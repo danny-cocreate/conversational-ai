@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ lesson.title }} - AI Voice Coach</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23007bff' d='M3.5 6.5A.5.5 0 0 1 4 7v1a4 4 0 0 0 8 0V7a.5.5 0 0 1 1 0v1a5 5 0 0 1-4.5 4.975V15h3a.5.5 0 0 1 0 1h-7a.5.5 0 0 1 0-1h3v-2.025A5 5 0 0 1 3 8V7a.5.5 0 0 1 .5-.5z'/%3E%3Cpath fill='%23007bff' d='M10 8V3a2 2 0 1 0-4 0v5a2 2 0 1 0 4 0z'/%3E%3C/svg%3E" type="image/svg+xml">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- New Top Bar -->
+    <div class="header">
+        <div class="breadcrumb">
+        <a href="/" >Lessons</a> / {{ lesson.title }} </div>
+    </div>
+
+    <!-- Settings Button -->
+    <button class="settings-btn" onclick="openProfileSettingsModal()">
+        <i class="fas fa-cog"></i>
+    </button>
+
+   
+
+    <!-- Always Visible Speak Button -->
+    <div class="speak-button-container">
+        <button type="button" id="micButton">
+            <svg id="micIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M3.5 6.5A.5.5 0 0 1 4 7v1a4 4 0 0 0 8 0V7a.5.5 0 0 1 1 0v1a5 5 0 0 1-4.5 4.975V15h3a.5.5 0 0 1 0 1h-7a.5.5 0 0 1 0-1h3v-2.025A5 5 0 0 1 3 8V7a.5.5 0 0 1 .5-.5z"/>
+                <path d="M10 8V3a2 2 0 1 0-4 0v5a2 2 0 1 0 4 0z"/>
+            </svg>
+            <span id="micButtonText">Start Lesson</span>
+        </button>
+        
+        
+        <!-- Interrupt Button -->
+        <button type="button" id="interruptButton" style="display: none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                <path d="M5 6.5A1.5 1.5 0 0 1 6.5 5h3A1.5 1.5 0 0 1 11 6.5v3A1.5 1.5 0 0 1 9.5 11h-3A1.5 1.5 0 0 1 5 9.5v-3z"/>
+            </svg>
+            <span>Interrupt</span>
+        </button>
+    </div>
+
+    <!-- TTS Visualizer (Moved outside speak-button-container) -->
+    <div id="ttsVisualizer" style="display: none;">
+        <canvas id="visualizer"></canvas>
+    </div>
+
+    <div class="main-layout">
+        <!-- Content Area -->
+        <div class="content-area">
+            <!-- Main Lesson Container -->
+            <div class="lesson-container">
+                
+
+                <!-- Lesson Content Wrapper for Side Navigation -->
+                <div class="lesson-content-wrapper">
+                    <!-- Navigation Button Previous -->
+                    <button class="slide-nav-button prev" id="prevSlideBtn" onclick="previousSlide()">
+                        ❮
+                    </button>
+
+                    <!-- Lesson Content Area -->
+                    <div class="lesson-content">
+                        <!-- Slide Info -->
+                        <div class="slide-info">
+                            Slide <span id="currentSlideNum">1</span> of <span id="totalSlides">{{ total_slides }}</span>
+                        </div>
+                        <!-- Dynamic Slide Content -->
+                        <div id="slideContent">
+                            <div class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading lesson content...</span>
+                                </div>
+                                <p class="mt-3">Loading your personalized lesson experience...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Button Next -->
+                    <button class="slide-nav-button next" id="nextSlideBtn" onclick="nextSlide()">
+                        ❯
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chat Toggle Button -->
+            <button class="chat-toggle" onclick="toggleChatWindow()">
+                <i class="fas fa-file-lines"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Sliding Chat Window from Left -->
+    <div class="chat-container" id="chatContainer">
+       
+        <div class="chat-content">
+            <!-- Chat History Section -->
+            <div id="chatHistoryContent" class="chat-history-content">
+                <div id="conversation" style="height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin-bottom: 20px; border-radius: 4px; background: white;"></div>
+            </div>
+
+            <!-- Chat Form -->
+            <form id="chatForm">
+                <div class="message-container">
+                    <label for="text">Your message:</label>
+                    <textarea id="text" name="text" required placeholder="Ask about the lesson content..." style="height: 80px;"></textarea>
+                    <button type="submit" class="submit-button">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M8 15a.5.5 0 0 0 .5-.5V2.707l3.146 3.147a.5.5 0 0 0 .708-.708l-4-4a.5.5 0 0 0-.708 0l-4 4a.5.5 0 1 0 .708.708L7.5 2.707V14.5a.5.5 0 0 0 .5.5z"/>
+                        </svg>
+                    </button>
+                </div>
+            </form>
+            
+            <audio id="audioPlayer" controls style="display: none;"></audio>
+            <div id="error" class="error"></div>
+        </div>
+    </div>
+
+    <!-- Profile Settings Modal -->
+    <div class="modal fade" id="profileSettingsModal" tabindex="-1" aria-labelledby="profileSettingsModalLabel" aria-hidden="true" style="display: none;">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <h5 class="modal-title" id="profileSettingsModalLabel">Voice Settings</h5>
+                </div>
+                <div class="modal-body">
+                    <!-- Voice Selection -->
+                    <div class="mb-3">
+                        <label for="voice_select" class="form-label">Select Voice</label>
+                        <select class="form-select" id="voice_select">
+                            <option value="" disabled selected>Choose a voice...</option>
+                            <option value="Eleanor">Eleanor - Warm, Friendly Female</option>
+                            <option value="Sky">Sky - Natural Female</option>
+                            <option value="Melody">Melody - Energetic Female</option>
+                            <option value="Javier">Javier - Professional Male</option>
+                            <option value="Marcus">Marcus - Authoritative Male</option>
+                            <option value="Luna">Luna - Gentle Female</option>
+                            <option value="Atlas">Atlas - Confident Male</option>
+                            <option value="Nova">Nova - Youthful Female</option>
+                            <option value="Orion">Orion - Mature Male</option>
+                            <option value="Aria">Aria - Melodic Female</option>
+                            <option value="Echo">Echo - Clear Female</option>
+                            <option value="Phoenix">Phoenix - Strong Male</option>
+                            <option value="Sage">Sage - Wise Male</option>
+                            <option value="Lyra">Lyra - Cheerful Female</option>
+                            <option value="Zen">Zen - Calm Male</option>
+                        </select>
+                      
+                        <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="testSelectedVoice()">
+                            <i class="fas fa-play"></i> Test Selected Voice
+                        </button>
+                    </div>
+
+                    <!-- Hidden TTS Settings (for updateTTSSettings function) -->
+                    <div class="hidden-tts-setting">
+                        <div class="mb-3">
+                            <label for="provider_select" class="form-label">TTS Provider</label>
+                            <select class="form-select" id="provider_select">
+                                <option value="default">Default Provider</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="speed" class="form-label">Speed: <span id="speedValue">1.0</span>x</label>
+                            <input type="range" class="form-range" id="speed" min="0.5" max="2.0" step="0.1" value="1.0">
+                        </div>
+                        <div class="mb-3">
+                            <label for="temperature" class="form-label">Temperature: <span id="temperatureValue">0.7</span></label>
+                            <input type="range" class="form-range" id="temperature" min="0.1" max="1.0" step="0.05" value="0.7">
+                            <div id="temperatureNote" class="form-text mt-2"></div>
+                        </div>
+                         <div class="mb-3" id="pitchContainer">
+                            <label for="pitch" class="form-label">Pitch: <span id="pitchValue">1.0</span></label>
+                            <input type="range" class="form-range" id="pitch" min="0.5" max="1.5" step="0.05" value="1.0">
+                        </div>
+                        <div class="mb-3">
+                            <label for="sensitivityLevel" class="form-label">Sensitivity Level</label>
+                            <select class="form-select" id="sensitivityLevel">
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="updateTTSSettings()">
+                        Save Voice Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+  
+  
+
+    <!-- ERROR PREVENTION SCRIPT - Load FIRST -->
+    <script>
+        // CRITICAL ERROR FIXES - Load before all other scripts
+        console.log('🔧 Loading inline error fixes...');
+
+        // Initialize TTS Visualizer
+        let ttsVisualizer = null;
+        document.addEventListener('DOMContentLoaded', function() {
+            window.ttsVisualizer = new TTSVisualizer('visualizer', {
+                style: 'bars',
+                colorScheme: 'cool',
+                barWidth: 4,
+                barGap: 4,
+                height: 0.6,
+                speed: 4.0
+            });
+        });
+
+        // Function to show visualizer and hide mic button
+        function showVisualizer(text, targetWidth, targetHeight) {
+            const micButton = document.getElementById('micButton');
+            const visualizer = document.getElementById('ttsVisualizer');
+            
+            if (micButton && visualizer && window.ttsVisualizer) {
+                micButton.style.display = 'none';
+                visualizer.style.display = 'block';
+                
+                // Set canvas dimensions directly using passed parameters
+                window.ttsVisualizer.canvas.width = targetWidth;
+                window.ttsVisualizer.canvas.height = targetHeight;
+                console.log(`TTSVisualizer: Canvas drawing dimensions set directly to ${targetWidth}x${targetHeight}`);
+                
+                window.ttsVisualizer.start(text);
+            }
+        }
+
+        // Function to hide visualizer and show mic button
+        function hideVisualizer() {
+            const micButton = document.getElementById('micButton');
+            const visualizer = document.getElementById('ttsVisualizer');
+            if (micButton && visualizer && window.ttsVisualizer) {
+                micButton.style.display = 'block';
+                visualizer.style.display = 'none';
+                window.ttsVisualizer.stop();
+            }
+        }
+
+        // 1. PREVENT DOM ELEMENT NULL ERRORS
+        const safeGetElement = (id) => {
+            const element = document.getElementById(id);
+            if (!element) {
+                console.warn(`⚠️ Element '${id}' not found (normal on lesson pages)`);
+            }
+            return element;
+        };
+
+        // 2. SAFER TTS FUNCTION OVERRIDES
+        window.safeUpdateProviderStatus = function(status) {
+            const statusDiv = safeGetElement('providerStatus');
+            if (statusDiv && status) {
+                try {
+                    statusDiv.innerHTML = `<strong>Provider:</strong> ${status.current_provider || 'Loading...'}`;
+                    statusDiv.style.backgroundColor = '#d4edda';
+                } catch (error) {
+                    console.warn('⚠️ Provider status update failed:', error.message);
+                }
+            }
+        };
+
+        // 3. PREVENT DOCUMENT LOADING ERRORS  
+        window.loadDocuments = function() {
+            console.log('📚 Document loading disabled - using lesson database');
+            return Promise.resolve([]);
+        };
+
+        // 4. GLOBAL ERROR HANDLER
+        window.addEventListener('error', function(event) {
+            if (event.message && (
+                event.message.includes('innerHTML') || 
+                event.message.includes('Cannot set properties of null') ||
+                event.message.includes('404')
+            )) {
+                console.warn('🔇 Handled expected frontend error:', event.message);
+                return true; // Prevent error from bubbling up
+            }
+        });
+
+        // 5. PROMISE REJECTION HANDLER
+        window.addEventListener('unhandledrejection', function(event) {
+            if (event.reason && event.reason.message && (
+                event.reason.message.includes('TTS') || 
+                event.reason.message.includes('documents') ||
+                event.reason.message.includes('404')
+            )) {
+                console.warn('🔇 Handled expected promise rejection:', event.reason.message);
+                event.preventDefault();
+            }
+        });
+
+        console.log('✅ Error fixes loaded successfully');
+    </script>
+
+    <!-- Load Scripts -->
+    <script src="{{ url_for('static', filename='tts-functions.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.13.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.5.4/dist/speech-commands.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@2.3.6/dist/purify.min.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    
+    <!-- Enhanced Lesson Script -->
+    <script>
+        // Global variables
+        let lessonId = null;
+        let lessonTitle = '';
+        let slides = [];
+        let totalSlides = 0;
+        let currentSlide = 0;
+        let lastLessonWelcomeTime = 0; // NEW: Track welcome time
+        
+        // Initialize lesson context
+        window.lessonContext = {
+            isLessonMode: true,
+            lessonId: '{{ lesson.id }}',
+            lessonTitle: '{{ lesson.title }}'
+        };
+
+        // Load lesson content from API
+        async function loadLessonContent() {
+            try {
+                console.log('📡 Loading lesson content for:', lessonId);
+                
+                // Set lesson context variables
+                lessonId = window.lessonContext.lessonId;
+                lessonTitle = window.lessonContext.lessonTitle;
+                
+                const response = await fetch(`/lesson/${lessonId}/api/content`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    slides = data.slides;
+                    totalSlides = data.total_slides;
+                    
+                    console.log('✅ Loaded', totalSlides, 'slides');
+                    
+                    // Display first slide
+                    displaySlide(0);
+                    updateNavigation();
+                    
+                    // Trigger AI welcome message
+                    setTimeout(() => {
+                        triggerAIWelcome();
+                    }, 1000);
+                    
+                } else {
+                    throw new Error(data.error || 'Failed to load lesson');
+                }
+            } catch (error) {
+                console.error('❌ Error loading lesson:', error);
+                const slideContentEl = safeGetElement('slideContent');
+                if (slideContentEl) {
+                    slideContentEl.innerHTML = `
+                        <div class="alert alert-danger">
+                            <h5>Error Loading Lesson</h5>
+                            <p>${error.message}</p>
+                            <button class="btn btn-outline-danger" onclick="loadLessonContent()">
+                                <i class="fas fa-redo me-2"></i>Retry
+                            </button>
+                        </div>
+                    `;
+                }
+            }
+        }
+        
+        // Display a specific slide
+        function displaySlide(slideIndex) {
+            if (slideIndex < 0 || slideIndex >= slides.length) return;
+            
+            const slide = slides[slideIndex];
+            currentSlide = slideIndex;
+            
+            // Update lesson context
+            window.lessonContext.currentSlide = currentSlide;
+            window.currentSlideData = {
+                index: currentSlide,
+                title: slide.title,
+                totalSlides: totalSlides,
+                lessonId: lessonId,
+                lessonTitle: lessonTitle
+            };
+            
+            console.log(`📊 Displaying slide ${slideIndex + 1}: ${slide.title}`);
+            
+            // Format and display slide content
+            const slideContentEl = safeGetElement('slideContent');
+            if (slideContentEl) {
+                slideContentEl.innerHTML = `
+                    <div class="slide active" id="slide-${slideIndex}">
+                        <h2>${slide.title}</h2>
+                        <div class="slide-content">
+                            ${formatSlideContent(slide.content)}
+                        </div>
+                        ${slide.notes ? `
+                            <div class="ai-insight" style="margin-top: 20px;">
+                                <strong>📝 Notes:</strong> ${slide.notes}
+                            </div>
+                        ` : ''}
+                        <div class="voice-command-hint">
+                            💬 Try saying: "Explain this slide" or "Next slide"
+                        </div>
+                    </div>
+                `;
+            }
+            
+            updateNavigation();
+            
+            // Notify the chat system about slide change
+            notifySlideChange(slideIndex);
+            
+            // Update voice hint
+            updateVoiceHint();
+        }
+        
+        // Format slide content (enhanced with better formatting)
+        function formatSlideContent(content) {
+            return content
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>')
+                .replace(/^/, '<p>')
+                .replace(/$/, '</p>')
+                .replace(/• /g, '<li>')
+                .replace(/<p><li>/g, '<ul><li>')
+                .replace(/<\/p>/g, (match, offset, string) => {
+                    // Close ul tags properly
+                    if (string.substring(offset - 4, offset) === '</li>') {
+                        return '</ul>';
+                    }
+                    return '</p>';
+                });
+        }
+        
+        // Update navigation buttons and indicators
+        function updateNavigation() {
+            const currentSlideNumEl = safeGetElement('currentSlideNum');
+            const prevBtnEl = safeGetElement('prevSlideBtn');
+            const nextBtnEl = safeGetElement('nextSlideBtn');
+            
+            if (currentSlideNumEl) {
+                currentSlideNumEl.textContent = currentSlide + 1;
+            }
+            if (prevBtnEl) {
+                prevBtnEl.disabled = currentSlide === 0;
+            }
+            if (nextBtnEl) {
+                nextBtnEl.disabled = currentSlide === totalSlides - 1;
+            }
+        }
+        
+        // Update voice hints based on slide content
+        function updateVoiceHint() {
+            const hints = [
+                "Ask me to explain this slide in detail",
+                "Say 'give me an example' for practical insights",
+                "Try 'how does this apply to my work?'",
+                "Ask 'can you elaborate on this concept?'",
+                "Try 'what are the key takeaways here?'",
+                "Ask 'how can I apply this in practice?'"
+            ];
+            
+            const randomHint = hints[Math.floor(Math.random() * hints.length)];
+            const voiceHintEl = safeGetElement('voiceHint');
+            if (voiceHintEl) {
+                voiceHintEl.innerHTML = `💬 ${randomHint}`;
+            }
+        }
+        
+        // Navigation functions
+        function nextSlide() {
+            if (currentSlide < totalSlides - 1) {
+                displaySlide(currentSlide + 1);
+                announceSlideChange('next');
+            }
+        }
+        
+        function previousSlide() {
+            if (currentSlide > 0) {
+                displaySlide(currentSlide - 1);
+                announceSlideChange('previous');
+            }
+        }
+        
+        // Announce slide changes for better user experience
+        function announceSlideChange(direction) {
+            const slideTitle = slides[currentSlide]?.title || 'Slide';
+            console.log(`🎬 Moved to slide ${currentSlide + 1}: ${slideTitle}`);
+            
+            // Update voice hint
+            updateVoiceHint();
+        }
+        
+        // Notify chat system about slide changes
+        async function notifySlideChange(newSlide) {
+            try {
+                await fetch('/slide-changed', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        current_slide: newSlide,
+                        previous_slide: currentSlide,
+                        lesson_id: lessonId
+                    })
+                });
+            } catch (error) {
+                console.log('Slide change notification failed (this is normal):', error.message);
+            }
+        }
+        
+        // Initialize lesson-specific voice system
+        function initializeLessonVoiceSystem() {
+            console.log('🎤 Initializing lesson voice system');
+            
+            // Override chat functionality for lesson context
+            if (window.sendChatMessage) {
+                const originalSendChat = window.sendChatMessage;
+                window.sendChatMessage = function(message, extraContext = {}) {
+                    // Add lesson context to all messages
+                    const lessonContext = {
+                        lesson_id: lessonId,
+                        current_slide: currentSlide,
+                        lesson_mode: true,
+                        slide_title: slides[currentSlide]?.title || 'Loading...',
+                        total_slides: totalSlides,
+                        ...extraContext
+                    };
+                    
+                    return originalSendChat(message, lessonContext);
+                };
+            }
+            
+            console.log('✅ Lesson voice system ready');
+        }
+        
+        // Trigger AI welcome message for the lesson
+        async function triggerAIWelcome() {
+            try {
+                console.log('🤖 Triggering AI welcome for lesson');
+                
+                // NEW: Track when welcome was shown
+                lastLessonWelcomeTime = Date.now();
+                
+                const welcomeMessage = `Welcome to "${lessonTitle}"! I'm your AI coach for this lesson. We have ${totalSlides} slides to explore together. Let's start with slide 1: "${slides[0]?.title}". Feel free to ask questions or say "explain this slide" at any time.`;
+                
+                // Add welcome message to chat (if available)
+                if (window.addMessageToChat) {
+                    window.addMessageToChat(welcomeMessage, 'ai');
+                }
+                
+                // Update coaching status
+                const coachingStatusEl = safeGetElement('coachingStatus');
+                if (coachingStatusEl) {
+                    coachingStatusEl.innerHTML = '🤖 AI Coach: Ready to help!';
+                }
+                
+                console.log('✅ AI welcome message ready');
+                
+            } catch (error) {
+                console.error('❌ Error with AI welcome:', error);
+            }
+        }
+        
+        // Keyboard navigation (disabled when typing)
+        document.addEventListener('keydown', function(event) {
+            if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
+            
+            if (event.key === 'ArrowRight' || event.key === ' ') {
+                event.preventDefault();
+                nextSlide();
+            } else if (event.key === 'ArrowLeft') {
+                event.preventDefault();
+                previousSlide();
+            }
+        });
+        
+        // SAFE SETTINGS FUNCTIONS (prevent undefined errors)
+        window.toggleSettingsSidebar = function() {
+            const sidebar = safeGetElement('settingsSidebar');
+            if (sidebar) {
+                sidebar.classList.toggle('collapsed');
+            }
+        };
+        
+        window.toggleChatWindow = function() {
+            const chatContainer = safeGetElement('chatContainer');
+            const expandIcon = safeGetElement('chatExpandIcon');
+            
+            if (chatContainer) {
+                chatContainer.classList.toggle('expanded');
+                const isExpanded = chatContainer.classList.contains('expanded');
+                
+                if (expandIcon) {
+                    expandIcon.textContent = isExpanded ? '▼' : '▲';
+                }
+            }
+        };
+        
+        // Initialize lesson voice system and load content
+        initializeLessonVoiceSystem();
+        loadLessonContent();
+        
+        console.log('🎓 Enhanced voice lesson template loaded with error fixes');
+    </script>
+
+    <!-- TTS Visualizer -->
+    <script src="{{ url_for('static', filename='tts-visualizer.js') }}"></script>
+
+    <!-- Initialize TTS system when DOM is ready -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize TTS system
+            if (typeof initializeTTSSystem === 'function') {
+                initializeTTSSystem();
+            }
+        });
+    </script>
+
+    <style>
+        .lesson-content {
+            position: relative;
+        }
+
+        .slide-info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.1);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .slide-navigation {
+            display: none; /* Hide the old navigation container */
+        }
+    </style>
+
+</body>
+</html>

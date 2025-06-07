@@ -1,0 +1,382 @@
+{% extends "admin_base.html" %}
+
+{% block title %}{{ lesson.title }}{% endblock %}
+
+{% block page_title %}
+<i class="fas fa-book me-2"></i> {{ lesson.title }}
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group">
+    <a href="{{ url_for('admin.lesson_preview', lesson_id=lesson.id) }}" class="btn btn-outline-secondary">
+        <i class="fas fa-search me-2"></i>Preview
+    </a>
+    {% if lesson.is_published %}
+        <button class="btn btn-outline-success" onclick="copyLessonUrl('{{ lesson.id }}')">
+            <i class="fas fa-share me-2"></i>Share URL
+        </button>
+    {% endif %}
+    <div class="btn-group">
+        <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+            <i class="fas fa-cog me-2"></i>Actions
+        </button>
+        <ul class="dropdown-menu">
+            <li>
+                <form method="POST" action="{{ url_for('admin.toggle_lesson_publish', lesson_id=lesson.id) }}" style="display: inline;">
+                    <input type="hidden" name="publish" value="{{ 'false' if lesson.is_published else 'true' }}">
+                    <button class="dropdown-item" type="submit">
+                        {% if lesson.is_published %}
+                            <i class="fas fa-eye-slash me-2"></i>Unpublish Lesson
+                        {% else %}
+                            <i class="fas fa-globe me-2"></i>Publish Lesson
+                        {% endif %}
+                    </button>
+                </form>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+                <form method="POST" 
+                      action="{{ url_for('admin.delete_lesson', lesson_id=lesson.id) }}" 
+                      style="display: inline;"
+                      onsubmit="return confirmDelete('{{ lesson.title }}')">
+                    <input type="hidden" name="confirm" value="true">
+                    <button class="dropdown-item text-danger" type="submit">
+                        <i class="fas fa-trash me-2"></i>Delete Lesson
+                    </button>
+                </form>
+            </li>
+        </ul>
+    </div>
+</div>
+<a href="{{ url_for('admin.lesson_list') }}" class="btn btn-outline-secondary ms-2">
+    <i class="fas fa-arrow-left me-2"></i>Back to Lessons
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Lesson Info -->
+    <div class="col-md-8">
+        <div class="card lesson-card">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Lesson Information
+                </h5>
+                {% if lesson.is_published %}
+                    <span class="badge bg-success status-badge">
+                        <i class="fas fa-globe me-1"></i>Published
+                    </span>
+                {% else %}
+                    <span class="badge bg-warning status-badge">
+                        <i class="fas fa-edit me-1"></i>Draft
+                    </span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label text-muted">Lesson ID</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" value="{{ lesson.id }}" readonly>
+                            <button class="btn btn-outline-secondary" onclick="copyToClipboard('{{ lesson.id }}')">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted">Slide Count</label>
+                        <input type="text" class="form-control" value="{{ lesson.slide_count }} slides" readonly>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted">Created</label>
+                        <input type="text" class="form-control" value="{{ lesson.created_at|datetime_format }}" readonly>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted">Last Updated</label>
+                        <input type="text" class="form-control" value="{{ lesson.updated_at|datetime_format }}" readonly>
+                    </div>
+                    {% if lesson.description %}
+                    <div class="col-12">
+                        <label class="form-label text-muted">Description</label>
+                        <textarea class="form-control" rows="3" readonly>{{ lesson.description }}</textarea>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Slide Content -->
+        <div class="card lesson-card mt-4">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-list me-2"></i>Slide Content
+                </h5>
+                <button class="btn btn-sm btn-outline-secondary" onclick="toggleAllSlides()">
+                    <i class="fas fa-expand-alt me-1"></i>Expand All
+                </button>
+            </div>
+            <div class="card-body">
+                {% if lesson.slides %}
+                    <div class="accordion" id="slidesAccordion">
+                        {% for slide in lesson.slides %}
+                        <div class="accordion-item mb-2">
+                            <h2 class="accordion-header" id="heading{{ slide.slide_number }}">
+                                <button class="accordion-button collapsed" 
+                                        type="button" 
+                                        data-bs-toggle="collapse" 
+                                        data-bs-target="#collapse{{ slide.slide_number }}">
+                                    <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                                        <span>
+                                            <strong>Slide {{ slide.slide_number }}:</strong> 
+                                            {{ slide.title or 'Untitled' }}
+                                        </span>
+                                        <small class="text-muted">
+                                            {{ slide.content|length if slide.content else 0 }} characters
+                                        </small>
+                                    </div>
+                                </button>
+                            </h2>
+                            <div id="collapse{{ slide.slide_number }}" 
+                                 class="accordion-collapse collapse" 
+                                 data-bs-parent="#slidesAccordion">
+                                <div class="accordion-body">
+                                    {% if slide.content %}
+                                        <div class="mb-3">
+                                            <label class="form-label text-muted">Content</label>
+                                            <div class="bg-light p-3 rounded">
+                                                <pre class="mb-0">{{ slide.content }}</pre>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                    {% if slide.notes %}
+                                        <div>
+                                            <label class="form-label text-muted">Speaker Notes</label>
+                                            <div class="bg-light p-3 rounded">
+                                                <pre class="mb-0">{{ slide.notes }}</pre>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-file-alt fa-2x text-muted mb-3"></i>
+                        <p class="text-muted">No slide content available</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Stats Sidebar -->
+    <div class="col-md-4">
+        <!-- Stats Card -->
+        <div class="card lesson-card">
+            <div class="card-header bg-light">
+                <h6 class="mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>Statistics
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if stats and 'error' not in stats %}
+                    <div class="row g-3 text-center">
+                        <div class="col-6">
+                            <div class="p-3 bg-primary bg-opacity-10 rounded">
+                                <div class="h4 mb-0 text-primary">{{ stats.get('session_count', 0) }}</div>
+                                <small class="text-muted">Sessions</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 bg-success bg-opacity-10 rounded">
+                                <div class="h4 mb-0 text-success">{{ stats.get('unique_users', 0) }}</div>
+                                <small class="text-muted">Users</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 bg-warning bg-opacity-10 rounded">
+                                <div class="h4 mb-0 text-warning">{{ stats.get('interaction_count', 0) }}</div>
+                                <small class="text-muted">Interactions</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 bg-info bg-opacity-10 rounded">
+                                <div class="h4 mb-0 text-info">{{ lesson.slide_count }}</div>
+                                <small class="text-muted">Slides</small>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-chart-bar fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-0">No statistics available</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Recent Sessions -->
+        {% if recent_sessions %}
+        <div class="card lesson-card mt-4">
+            <div class="card-header bg-light">
+                <h6 class="mb-0">
+                    <i class="fas fa-users me-2"></i>Recent Sessions
+                </h6>
+            </div>
+            <div class="card-body">
+                {% for session in recent_sessions %}
+                <div class="d-flex justify-content-between align-items-center mb-2 pb-2 {% if not loop.last %}border-bottom{% endif %}">
+                    <div>
+                        <div class="fw-medium">{{ session.user_name or 'Anonymous' }}</div>
+                        <small class="text-muted">
+                            Slide {{ session.current_slide + 1 }} • {{ session.experience_level }}
+                        </small>
+                    </div>
+                    <div class="text-end">
+                        <small class="text-muted">{{ session.last_activity|datetime_format }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Quick Actions -->
+        <div class="card lesson-card mt-4">
+            <div class="card-header bg-light">
+                <h6 class="mb-0">
+                    <i class="fas fa-bolt me-2"></i>Quick Actions
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('admin.lesson_preview', lesson_id=lesson.id) }}" 
+                       class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-search me-2"></i>Preview Lesson
+                    </a>
+                    {% if lesson.is_published %}
+                        <button class="btn btn-outline-success btn-sm" 
+                                onclick="copyLessonUrl('{{ lesson.id }}')">
+                            <i class="fas fa-share me-2"></i>Copy Share URL
+                        </button>
+                    {% endif %}
+                    <a href="{{ url_for('admin.analytics') }}" 
+                       class="btn btn-outline-info btn-sm">
+                        <i class="fas fa-chart-line me-2"></i>View Analytics
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Share URL Modal -->
+<div class="modal fade" id="shareModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-share me-2"></i>Share Lesson
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Share this URL with students to access the lesson:</p>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="shareUrlInput" readonly>
+                    <button class="btn btn-outline-secondary" onclick="copyFromShareInput()">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Students can access this lesson directly without needing admin access
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Slide accordion management
+    let allExpanded = false;
+    
+    function toggleAllSlides() {
+        const accordionItems = document.querySelectorAll('#slidesAccordion .accordion-collapse');
+        const toggleBtn = event.target.closest('button');
+        
+        if (allExpanded) {
+            // Collapse all
+            accordionItems.forEach(item => {
+                const bsCollapse = bootstrap.Collapse.getInstance(item);
+                if (bsCollapse) {
+                    bsCollapse.hide();
+                } else {
+                    new bootstrap.Collapse(item, {toggle: false}).hide();
+                }
+            });
+            toggleBtn.innerHTML = '<i class="fas fa-expand-alt me-1"></i>Expand All';
+            allExpanded = false;
+        } else {
+            // Expand all
+            accordionItems.forEach(item => {
+                const bsCollapse = bootstrap.Collapse.getInstance(item);
+                if (bsCollapse) {
+                    bsCollapse.show();
+                } else {
+                    new bootstrap.Collapse(item, {toggle: false}).show();
+                }
+            });
+            toggleBtn.innerHTML = '<i class="fas fa-compress-alt me-1"></i>Collapse All';
+            allExpanded = true;
+        }
+    }
+    
+    // Copy lesson URL functionality
+    function copyLessonUrl(lessonId) {
+        const url = `${window.location.origin}/lesson/${lessonId}`;
+        
+        navigator.clipboard.writeText(url).then(() => {
+            document.getElementById('shareUrlInput').value = url;
+            const modal = new bootstrap.Modal(document.getElementById('shareModal'));
+            modal.show();
+        }).catch(() => {
+            document.getElementById('shareUrlInput').value = url;
+            const modal = new bootstrap.Modal(document.getElementById('shareModal'));
+            modal.show();
+        });
+    }
+    
+    function copyFromShareInput() {
+        const input = document.getElementById('shareUrlInput');
+        input.select();
+        document.execCommand('copy');
+        
+        const btn = event.target.closest('button');
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+        }, 1000);
+    }
+    
+    // Auto-refresh stats every 30 seconds
+    setInterval(function() {
+        fetch(`{{ url_for('admin.api_lesson_stats', lesson_id=lesson.id) }}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update stats in the UI
+                    console.log('Stats updated:', data.stats);
+                }
+            })
+            .catch(error => console.log('Stats refresh failed:', error));
+    }, 30000);
+</script>
+{% endblock %}

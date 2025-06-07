@@ -1,0 +1,366 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block page_title %}
+<i class="fas fa-tachometer-alt me-2"></i> Dashboard
+{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('admin.upload_lesson') }}" class="btn btn-primary">
+    <i class="fas fa-plus me-2"></i>New Lesson
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4 mb-4">
+    <!-- Stats Cards -->
+    <div class="col-md-3">
+        <div class="stats-card p-4">
+            <div class="d-flex align-items-center">
+                <div class="flex-shrink-0">
+                    <div class="bg-primary bg-opacity-10 rounded-circle p-3">
+                        <i class="fas fa-book text-primary fa-lg"></i>
+                    </div>
+                </div>
+                <div class="flex-grow-1 ms-3">
+                    <h3 class="mb-0">{{ total_lessons }}</h3>
+                    <p class="text-muted mb-0">Total Lessons</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stats-card p-4">
+            <div class="d-flex align-items-center">
+                <div class="flex-shrink-0">
+                    <div class="bg-success bg-opacity-10 rounded-circle p-3">
+                        <i class="fas fa-globe text-success fa-lg"></i>
+                    </div>
+                </div>
+                <div class="flex-grow-1 ms-3">
+                    <h3 class="mb-0">{{ lessons|selectattr('is_published')|list|length }}</h3>
+                    <p class="text-muted mb-0">Published</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stats-card p-4">
+            <div class="d-flex align-items-center">
+                <div class="flex-shrink-0">
+                    <div class="bg-warning bg-opacity-10 rounded-circle p-3">
+                        <i class="fas fa-users text-warning fa-lg"></i>
+                    </div>
+                </div>
+                <div class="flex-grow-1 ms-3">
+                    <h3 class="mb-0">{{ total_sessions or 0 }}</h3>
+                    <p class="text-muted mb-0">Total Sessions</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stats-card p-4">
+            <div class="d-flex align-items-center">
+                <div class="flex-shrink-0">
+                    <div class="bg-info bg-opacity-10 rounded-circle p-3">
+                        <i class="fas fa-comments text-info fa-lg"></i>
+                    </div>
+                </div>
+                <div class="flex-grow-1 ms-3">
+                    <h3 class="mb-0">{{ total_interactions or 0 }}</h3>
+                    <p class="text-muted mb-0">Interactions</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row g-4 mb-4">
+    <div class="col-md-12">
+        <div class="card lesson-card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="fas fa-bolt me-2"></i>Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <a href="{{ url_for('admin.upload_lesson') }}" class="btn btn-outline-primary w-100 btn-action">
+                            <i class="fas fa-upload me-2"></i>Upload New Lesson
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('admin.lesson_list') }}" class="btn btn-outline-secondary w-100 btn-action">
+                            <i class="fas fa-list me-2"></i>Manage Lessons
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('admin.analytics') }}" class="btn btn-outline-info w-100 btn-action">
+                            <i class="fas fa-chart-bar me-2"></i>View Analytics
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-outline-warning w-100 btn-action" onclick="toggleCoachingInstructions()">
+                            <i class="fas fa-chalkboard-teacher me-2"></i>AI Coaching Setup
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- AI Coaching Instructions Panel (Hidden) -->
+<div id="coachingInstructionsPanel" class="row g-4 mb-4" style="display: none;">
+    <div class="col-md-12">
+        <div class="card lesson-card border-warning">
+            <div class="card-header bg-warning bg-opacity-10">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chalkboard-teacher me-2 text-warning"></i>AI Coaching Instructions
+                    </h5>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="toggleCoachingInstructions()">
+                        <i class="fas fa-times"></i> Close
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <p class="text-muted mb-3">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Customize how your AI coach responds to students. Write your teaching style in plain English - changes apply immediately to all lessons.
+                        </p>
+                        <textarea id="instructionsText" class="form-control" rows="12" 
+                                  placeholder="Ask one question at a time and wait for the student's response.&#10;&#10;When a student seems confused, acknowledge it first, then ask what specific part is unclear.&#10;&#10;Use real-world examples before explaining theory.&#10;&#10;Keep responses conversational, not bullet points.&#10;&#10;If a student asks 'I don't get it', ask them to point to the specific part that's confusing."></textarea>
+                        
+                        <div class="mt-3">
+                            <button class="btn btn-success" onclick="saveInstructions()">
+                                <i class="fas fa-save me-1"></i>Save Instructions
+                            </button>
+                            <button class="btn btn-secondary ms-2" onclick="loadInstructions()">
+                                <i class="fas fa-refresh me-1"></i>Reload
+                            </button>
+                            <button class="btn btn-outline-danger ms-2" onclick="clearInstructions()">
+                                <i class="fas fa-trash me-1"></i>Clear All
+                            </button>
+                            <span id="saveStatus" class="text-success ms-3" style="display: none;">
+                                <i class="fas fa-check"></i> Saved successfully!
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="bg-light p-3 rounded">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-lightbulb me-1"></i>Teaching Style Examples
+                            </h6>
+                            <div class="small text-muted">
+                                <div class="mb-2">
+                                    <strong>Question Pacing:</strong><br>
+                                    "Ask one question at a time and wait for response"
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Confusion Handling:</strong><br>
+                                    "When students seem lost, ask 'What specific part is tricky?'"
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Encouragement:</strong><br>
+                                    "Always start with 'Great question!' or 'I love that you asked that'"
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Examples First:</strong><br>
+                                    "Use cooking analogies to explain complex concepts"
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Check Understanding:</strong><br>
+                                    "After each explanation, ask 'Does that make sense so far?'"
+                                </div>
+                            </div>
+                            
+                            <hr class="my-3">
+                            
+                            <h6 class="text-info mb-2">
+                                <i class="fas fa-cogs me-1"></i>How It Works
+                            </h6>
+                            <div class="small text-muted">
+                                Instructions are applied to all AI responses automatically. The system detects patterns like "one question at a time" and modifies responses accordingly.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Lessons -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card lesson-card">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-clock me-2"></i>Recent Lessons
+                </h5>
+                <a href="{{ url_for('admin.lesson_list') }}" class="btn btn-sm btn-outline-primary">
+                    View All <i class="fas fa-arrow-right ms-1"></i>
+                </a>
+            </div>
+            <div class="card-body">
+                {% if lessons %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Lesson</th>
+                                    <th>Status</th>
+                                    <th>Slides</th>
+                                    <th>Sessions</th>
+                                    <th>Updated</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for lesson in lessons[:5] %}
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <strong>{{ lesson.title }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ lesson.id }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if lesson.is_published %}
+                                            <span class="badge bg-success status-badge">
+                                                <i class="fas fa-globe me-1"></i>Published
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-warning status-badge">
+                                                <i class="fas fa-edit me-1"></i>Draft
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info status-badge">
+                                            {{ lesson.slide_count }} slides
+                                        </span>
+                                    </td>
+                                    <td>{{ lesson.stats.get('session_count', 0) if lesson.stats else 0 }}</td>
+                                    <td>
+                                        <small>{{ lesson.updated_at|datetime_format }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('admin.lesson_detail', lesson_id=lesson.id) }}" 
+                                               class="btn btn-outline-primary btn-sm" 
+                                               title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('admin.lesson_preview', lesson_id=lesson.id) }}" 
+                                               class="btn btn-outline-secondary btn-sm" 
+                                               title="Preview">
+                                                <i class="fas fa-search"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <div class="mb-3">
+                            <i class="fas fa-book fa-3x text-muted"></i>
+                        </div>
+                        <h5 class="text-muted">No lessons yet</h5>
+                        <p class="text-muted">Create your first lesson to get started</p>
+                        <a href="{{ url_for('admin.upload_lesson') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Upload First Lesson
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-refresh stats every 30 seconds
+    setInterval(function() {
+        // Optional: Add auto-refresh functionality
+        console.log('Dashboard auto-refresh (disabled in demo)');
+    }, 30000);
+    
+    // Coaching Instructions Management
+    function toggleCoachingInstructions() {
+        const panel = document.getElementById('coachingInstructionsPanel');
+        const isVisible = panel.style.display !== 'none';
+        panel.style.display = isVisible ? 'none' : 'block';
+        
+        if (!isVisible) {
+            loadInstructions();
+        }
+    }
+    
+    async function loadInstructions() {
+        try {
+            const response = await fetch('/api/coaching/instructions');
+            const text = await response.text();
+            document.getElementById('instructionsText').value = text;
+        } catch (error) {
+            console.error('Failed to load instructions:', error);
+            alert('Failed to load instructions: ' + error.message);
+        }
+    }
+    
+    async function saveInstructions() {
+        const text = document.getElementById('instructionsText').value;
+        const saveBtn = event.target;
+        const originalText = saveBtn.innerHTML;
+        
+        try {
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
+            saveBtn.disabled = true;
+            
+            const response = await fetch('/api/coaching/instructions', {
+                method: 'POST',
+                headers: {'Content-Type': 'text/plain'},
+                body: text
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                const status = document.getElementById('saveStatus');
+                status.innerHTML = `<i class="fas fa-check"></i> Saved ${result.instruction_count} instructions!`;
+                status.style.display = 'inline';
+                setTimeout(() => status.style.display = 'none', 5000);
+            } else {
+                throw new Error('Save failed');
+            }
+        } catch (error) {
+            alert('Failed to save instructions: ' + error.message);
+        } finally {
+            saveBtn.innerHTML = originalText;
+            saveBtn.disabled = false;
+        }
+    }
+    
+    function clearInstructions() {
+        if (confirm('Are you sure you want to clear all coaching instructions? This will reset the AI to default behavior.')) {
+            document.getElementById('instructionsText').value = '';
+            saveInstructions();
+        }
+    }
+</script>
+{% endblock %}

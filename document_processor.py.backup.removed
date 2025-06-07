@@ -1,0 +1,94 @@
+import os
+from typing import List, Dict, Any
+
+class DocumentProcessor:
+    def __init__(self, base_storage_dir: str = 'knowledge_base'):
+        self.base_storage_dir = base_storage_dir
+        os.makedirs(base_storage_dir, exist_ok=True)
+        # self.documents: Dict[str, str] = {} # This in-memory cache might be problematic with lesson-specific dirs, remove or rethink if needed
+
+    def _get_lesson_dir(self, lesson_id: str) -> str:
+        """Get the storage directory for a specific lesson."""
+        lesson_dir = os.path.join(self.base_storage_dir, lesson_id)
+        os.makedirs(lesson_dir, exist_ok=True)
+        return lesson_dir
+    
+    def add_document(self, lesson_id: str, doc_name: str, content: str) -> bool:
+        """Add a document to the knowledge base for a specific lesson."""
+        try:
+            lesson_dir = self._get_lesson_dir(lesson_id)
+            file_path = os.path.join(lesson_dir, f"{doc_name}.txt")
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            # Update in-memory dict if keeping, but consider impact of lesson_id
+            # self.documents[doc_name] = file_path # This line is problematic for lesson-specific
+            print(f"✅ Added document '{doc_name}' to knowledge base for lesson '{lesson_id}'")
+            return True
+        except Exception as e:
+            print(f"❌ Error adding document '{doc_name}' for lesson '{lesson_id}': {str(e)}")
+            return False
+    
+    def get_document_content(self, lesson_id: str, doc_name: str) -> str:
+        """Retrieve document content from the knowledge base for a specific lesson."""
+        try:
+            lesson_dir = self._get_lesson_dir(lesson_id)
+            file_path = os.path.join(lesson_dir, f"{doc_name}.txt")
+            if os.path.exists(file_path):
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    return f.read()
+            print(f"⚠️ Document '{doc_name}' not found for lesson '{lesson_id}'")
+            return ""
+        except Exception as e:
+            print(f"❌ Error reading document '{doc_name}' for lesson '{lesson_id}': {str(e)}")
+            return ""
+    
+    def list_documents(self, lesson_id: str) -> List[str]:
+        """List all documents in the knowledge base for a specific lesson."""
+        try:
+            lesson_dir = self._get_lesson_dir(lesson_id)
+            files = os.listdir(lesson_dir)
+            document_names = [os.path.splitext(f)[0] for f in files if f.endswith('.txt')]
+            print(f"📄 Found {len(document_names)} documents for lesson '{lesson_id}'")
+            return document_names
+        except FileNotFoundError:
+            print(f"⚠️ Knowledge base directory not found for lesson '{lesson_id}'")
+            return [] # Return empty list if directory doesn't exist
+        except Exception as e:
+            print(f"❌ Error listing documents for lesson '{lesson_id}': {str(e)}")
+            return []
+    
+    def remove_document(self, lesson_id: str, doc_name: str) -> bool:
+        """Remove a document from the knowledge base for a specific lesson."""
+        try:
+            lesson_dir = self._get_lesson_dir(lesson_id)
+            file_path = os.path.join(lesson_dir, f"{doc_name}.txt")
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                # Remove from in-memory dict if keeping, but consider impact of lesson_id
+                # if doc_name in self.documents: # Problematic for lesson-specific
+                #     del self.documents[doc_name]
+                print(f"✅ Removed document '{doc_name}' from knowledge base for lesson '{lesson_id}'")
+                return True
+            print(f"⚠️ Document '{doc_name}' not found for lesson '{lesson_id}'. Cannot remove.")
+            return False
+        except Exception as e:
+            print(f"❌ Error removing document '{doc_name}' for lesson '{lesson_id}': {str(e)}")
+            return False
+
+    def get_knowledge_base_status(self, lesson_id: str) -> Dict[str, Any]:
+        """Get the status of the knowledge base for a specific lesson."""
+        try:
+            documents = self.list_documents(lesson_id)
+            status = {
+                'lesson_id': lesson_id,
+                'document_count': len(documents),
+                'documents': documents,
+                'storage_path': os.path.abspath(self._get_lesson_dir(lesson_id))
+                # Add checks for embedding status here if embedding is implemented later
+                # 'embedding_status': 'not implemented'
+            }
+            print(f"📊 Retrieved knowledge base status for lesson '{lesson_id}'")
+            return status
+        except Exception as e:
+            print(f"❌ Error getting knowledge base status for lesson '{lesson_id}': {str(e)}")
+            return {'lesson_id': lesson_id, 'error': str(e), 'document_count': 0, 'documents': []}

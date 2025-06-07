@@ -1,0 +1,314 @@
+{% extends "admin_base.html" %}
+
+{% block title %}System Prompt Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">System Prompt Management</h1>
+    
+    <!-- Base Prompt Section -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Base Prompt</h6>
+        </div>
+        <div class="card-body">
+            <div class="form-group">
+                <textarea id="basePrompt" class="form-control" rows="10"></textarea>
+                <small class="form-text text-muted">Character count: <span id="basePromptCount">0</span></small>
+            </div>
+            <button class="btn btn-primary" id="updateBasePromptButton">Update Base Prompt</button>
+        </div>
+    </div>
+    
+    <!-- Context Modifiers Section -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Context Modifiers</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="modifiersTable">
+                    <thead>
+                        <tr>
+                            <th>Context</th>
+                            <th>Modifier</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Modifiers will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Add New Modifier Form -->
+            <div class="mt-4">
+                <h6>Add New Modifier</h6>
+                <div class="form-group">
+                    <input type="text" id="newContext" class="form-control" placeholder="Context name">
+                </div>
+                <div class="form-group">
+                    <textarea id="newModifier" class="form-control" rows="3" placeholder="Modifier text"></textarea>
+                </div>
+                <button class="btn btn-success" onclick="addModifier()">Add Modifier</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Full Prompt Preview -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Full Prompt Preview</h6>
+        </div>
+        <div class="card-body">
+            <pre id="fullPrompt" class="bg-light p-3" style="white-space: pre-wrap;"></pre>
+            <small class="form-text text-muted">Total character count: <span id="fullPromptCount">0</span></small>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Load initial data and set up event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    loadSystemPromptData();
+
+    // Attach event listener to the update button
+    const updateButton = document.getElementById('updateBasePromptButton');
+    if (updateButton) {
+        updateButton.addEventListener('click', function() {
+            const prompt = document.getElementById('basePrompt').value.trim();
+            if (!prompt) {
+                alert('Prompt cannot be empty');
+                return;
+            }
+            
+            console.log('Attempting to update base prompt:', prompt);
+
+            fetch('/admin/settings/system-prompt', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'update_base',
+                    prompt: prompt
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Base prompt update response:', data);
+                if (data.status === 'success') {
+                    alert('Base prompt updated successfully');
+                    loadSystemPromptData();
+                } else {
+                    alert('Error updating base prompt: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error updating base prompt:', error);
+                alert('Error updating base prompt');
+            });
+        });
+    } else {
+        console.error('Update button not found in the DOM');
+    }
+});
+
+window.loadSystemPromptData = function() {
+    console.log('Loading system prompt data...');
+    fetch('/admin/settings/system-prompt')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Received system prompt data:', data);
+            if (data.status === 'success') {
+                // Update base prompt
+                const basePromptElement = document.getElementById('basePrompt');
+                if (basePromptElement) {
+                    basePromptElement.value = data.data.base_prompt;
+                    updateCharCount('basePrompt');
+                } else {
+                    console.error('Base prompt textarea not found');
+                }
+                
+                // Update modifiers table
+                const tbody = document.querySelector('#modifiersTable tbody');
+                if (tbody) {
+                    tbody.innerHTML = '';
+                    
+                    Object.entries(data.data.modifiers).forEach(([context, modifier]) => {
+                        const isActive = data.data.active_contexts.includes(context);
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${context}</td>
+                            <td>${modifier}</td>
+                            <td>
+                                <span class="badge ${isActive ? 'badge-success' : 'badge-secondary'}">
+                                    ${isActive ? 'Active' : 'Inactive'}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-primary" onclick="toggleContext('${context}', ${!isActive})">
+                                    ${isActive ? 'Deactivate' : 'Activate'}
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="removeModifier('${context}')">
+                                    Remove
+                                </button>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                } else {
+                    console.error('Modifiers table body not found');
+                }
+                
+                // Update full prompt preview
+                const fullPromptElement = document.getElementById('fullPrompt');
+                if (fullPromptElement) {
+                    fullPromptElement.textContent = data.data.full_prompt;
+                    updateCharCount('fullPrompt');
+                } else {
+                    console.error('Full prompt preview element not found');
+                }
+                
+                console.log('Successfully updated all UI elements');
+            } else {
+                console.error('Server returned error status:', data.error);
+                alert('Error loading system prompt data: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error loading system prompt data:', error);
+            // Only show alert for actual errors, not during normal loading
+            if (error.message !== 'Failed to fetch') {
+                alert('Error loading system prompt data: ' + error.message);
+            }
+        });
+}
+
+function addModifier() {
+    const context = document.getElementById('newContext').value.trim();
+    const modifier = document.getElementById('newModifier').value.trim();
+    
+    if (!context || !modifier) {
+        alert('Context and modifier are required');
+        return;
+    }
+    
+    fetch('/admin/settings/system-prompt', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            action: 'add_modifier',
+            context: context,
+            modifier: modifier
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert('Modifier added successfully');
+            document.getElementById('newContext').value = '';
+            document.getElementById('newModifier').value = '';
+            loadSystemPromptData();
+        } else {
+            alert('Error adding modifier: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error adding modifier:', error);
+        alert('Error adding modifier');
+    });
+}
+
+function removeModifier(context) {
+    if (!confirm('Are you sure you want to remove this modifier?')) {
+        return;
+    }
+    
+    fetch('/admin/settings/system-prompt', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            action: 'remove_modifier',
+            context: context
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert('Modifier removed successfully');
+            loadSystemPromptData();
+        } else {
+            alert('Error removing modifier: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error removing modifier:', error);
+        alert('Error removing modifier');
+    });
+}
+
+function toggleContext(context, activate) {
+    fetch('/admin/settings/system-prompt', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            action: 'toggle_context',
+            context: context,
+            activate: activate
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            loadSystemPromptData();
+        } else {
+            alert('Error toggling context: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error toggling context:', error);
+        alert('Error toggling context');
+    });
+}
+
+function updateCharCount(elementId) {
+    const element = document.getElementById(elementId);
+    const countElement = document.getElementById(elementId + 'Count');
+    
+    if (!element || !countElement) {
+        console.warn(`Element or count element not found for ${elementId}`);
+        return;
+    }
+
+    let text = '';
+    if (element.tagName === 'TEXTAREA' || element.tagName === 'INPUT') {
+        text = element.value;
+    } else {
+        text = element.textContent;
+    }
+    
+    countElement.textContent = text.length;
+}
+
+// Add event listeners for character count updates
+document.getElementById('basePrompt').addEventListener('input', function() {
+    updateCharCount('basePrompt');
+});
+</script>
+{% endblock %} 
